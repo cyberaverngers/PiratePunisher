@@ -1,3 +1,1 @@
-# Runtime dependencies (none required for the minimal demo)
-# Dev/test deps
-pytest
+# requirements removed for minimal demo

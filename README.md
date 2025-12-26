@@ -1,6 +1,15 @@
 # PiratePunisher
-email punisher
+
+Minimal demo: a single `main.py` script and a Colab notebook to run it.
+
+## Files kept
+- `main.py` — minimal demo CLI (run with `python main.py --example`)
+- `notebooks/colab_demo.ipynb` — Google Colab demo (badge below)
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cyberaverngers/PiratePunisher/blob/main/notebooks/colab_demo.ipynb)
 
-Click the badge to open the demo in Google Colab, then Runtime → Run all to execute the notebook. Note: Colab requires you to click Connect before running.
+To run locally:
+
+```bash
+python main.py --example
+```

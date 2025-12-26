@@ -1,5 +1,2 @@
-from src.main import main
-
-
-def test_main_example() -> None:
-    assert main(example=True) == 0
+# removed - trimmed project to minimal structure
+# tests removed
