@@ -1,0 +1,10 @@
+Timestamp,URL,Status,Reason,Email
+2025-11-10 10:33:48,https://www.ecosa.com/,❌ Failed,"nav_error: Message: Navigation timed out after 30000 ms
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+TimeoutError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:847:5
+bail@chrome://remote/content/shared/Sync.sys.mjs:440:19
+",john144@scshool.com
+2025-11-10 10:34:06,https://immaculatevegan.com/blogs/magazine,❌ Failed,"exception:Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+",john144@scshool.com

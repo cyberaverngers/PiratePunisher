@@ -1,0 +1,12 @@
+{
+    "automation_allowed": true,
+    "name_field": "first_name",
+    "last_name_field": "last_name",
+    "email_field": "email",
+    "address_field": "address",
+    "contact_number_field": "phone",
+    "subscribe_button": "subscribe",
+    "subscribe_css": "form.newsletter button[type='submit']",
+    "popup_email_selector": ".newsletter-popup input[type='email']",
+    "popup_submit_selector": ".newsletter-popup button[type='submit']"
+}

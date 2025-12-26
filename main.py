@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal PiratePunisher demo CLI.
 
-This is intentionally simple and safe: it simulates punishing spammy senders
-without performing any network actions. It is suitable for a Colab demo.
-"""
 import argparse
 
 
