@@ -17,22 +17,33 @@ Use responsibly. Ensure `automation_allowed` is set to true in `config.json`
 and you have permission to interact with the target websites.
 """
 
+
 import os
+import sys
 import json
 import time
 import csv
 import re
 import traceback
+import platform
+import shutil
 import tkinter as tk
 from tkinter import messagebox, ttk
 import pandas as pd
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
+try:
+    from selenium.webdriver.firefox.options import Options as FirefoxOptions
+except ImportError:
+    FirefoxOptions = None
+try:
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+except ImportError:
+    ChromeOptions = None
 
 print("pp.py started")  # DEBUG
 # ----------------------------
@@ -102,19 +113,47 @@ def is_valid_email(email: str) -> bool:
     return bool(re.match(r"^[^@]+@[^@]+\.[^@]+$", email))
 
 
-def setup_driver(headless=False):
-    opts = Options()
-    if headless:
-        opts.headless = True
-    # minor stealth prefs
-    try:
-        opts.set_preference("dom.webdriver.enabled", False)
-        opts.set_preference("useAutomationExtension", False)
-    except Exception:
-        pass
-    opts.add_argument("--width=1200")
-    opts.add_argument("--height=900")
-    return webdriver.Firefox(options=opts)
+
+def setup_driver(headless=False, prefer_browser=None):
+    """
+    Try to set up a Selenium driver. Prefer Firefox, fallback to Chrome if needed.
+    """
+    browser = prefer_browser or os.environ.get("PIRATEPUNISHER_BROWSER", "firefox").lower()
+    errors = []
+    if browser in ("firefox", "any") and FirefoxOptions:
+        geckodriver_path = shutil.which("geckodriver")
+        if geckodriver_path:
+            opts = FirefoxOptions()
+            if headless:
+                opts.headless = True
+            try:
+                opts.set_preference("dom.webdriver.enabled", False)
+                opts.set_preference("useAutomationExtension", False)
+            except Exception:
+                pass
+            opts.add_argument("--width=1200")
+            opts.add_argument("--height=900")
+            try:
+                return webdriver.Firefox(options=opts)
+            except Exception as e:
+                errors.append(f"Firefox error: {e}")
+        else:
+            errors.append("geckodriver not found in PATH.")
+    if browser in ("chrome", "any") and ChromeOptions:
+        chromedriver_path = shutil.which("chromedriver")
+        if chromedriver_path:
+            opts = ChromeOptions()
+            if headless:
+                opts.add_argument("--headless=new")
+            opts.add_argument("--window-size=1200,900")
+            try:
+                return webdriver.Chrome(options=opts)
+            except Exception as e:
+                errors.append(f"Chrome error: {e}")
+        else:
+            errors.append("chromedriver not found in PATH.")
+    raise RuntimeError("No working browser/driver found.\n" + "\n".join(errors) +
+        "\nInstall geckodriver (for Firefox) or chromedriver (for Chrome) and ensure it is in your PATH.")
 
 
 def click_cookie_banners(driver, config):
@@ -442,7 +481,90 @@ class NewsletterSignupApp:
         messagebox.showinfo("Done", f"Completed. See {success_log_path} and {failed_log_path} for logs.")
 
 
+
+def can_start_gui():
+    # On Linux, check DISPLAY; on macOS/Windows, assume GUI is available
+    if sys.platform.startswith("linux"):
+        return bool(os.environ.get("DISPLAY"))
+    return True
+
+def cli_main():
+    print("PiratePunisher CLI mode\n")
+    config = load_config()
+    if not config.get("automation_allowed", False):
+        print("Edit config.json and set 'automation_allowed': true to enable.")
+        sys.exit(1)
+    try:
+        urls = load_urls_from_excel()
+    except Exception as e:
+        print(f"File error: {e}")
+        sys.exit(1)
+    email = input("Enter email to use for signups: ").strip()
+    if not is_valid_email(email):
+        print("Invalid email address.")
+        sys.exit(1)
+    driver = None
+    try:
+        driver = setup_driver(headless=True)
+    except Exception as e:
+        print(f"Could not start browser: {e}")
+        sys.exit(1)
+    success_log_path = "signup_successes.csv"
+    failed_log_path = "failed_sites.txt"
+    if not os.path.exists(success_log_path):
+        with open(success_log_path, "w", newline="", encoding="utf-8") as csvf:
+            writer = csv.writer(csvf)
+            writer.writerow(["url", "email", "result", "note", "timestamp"])
+    with open(failed_log_path, "w", encoding="utf-8") as failf:
+        for idx, url in enumerate(urls):
+            print(f"[{idx+1}/{len(urls)}] {url}")
+            attempt = 0
+            success = False
+            note = ""
+            while attempt <= config.get("retries", 0) and not success:
+                attempt += 1
+                try:
+                    ok, reason = attempt_signup_on_site(driver, url, email, config)
+                    if ok:
+                        success = True
+                        note = reason
+                        with open(success_log_path, "a", newline="", encoding="utf-8") as csvf:
+                            writer = csv.writer(csvf)
+                            writer.writerow([url, email, "success", reason, time.strftime("%Y-%m-%d %H:%M:%S")])
+                        print(f"[OK] {url} -> {reason}")
+                        break
+                    else:
+                        note = reason
+                        print(f"[TRY-{attempt}] {url} not successful: {reason}")
+                        if attempt <= config.get("retries", 0):
+                            time.sleep(config.get("retry_delay", 6))
+                except Exception as e:
+                    note = f"exception: {e}"
+                    print("exception during attempt_signup:", e)
+                    if attempt <= config.get("retries", 0):
+                        time.sleep(config.get("retry_delay", 6))
+                    else:
+                        break
+            if not success:
+                failf.write(url + "\n")
+                with open(success_log_path, "a", newline="", encoding="utf-8") as csvf:
+                    writer = csv.writer(csvf)
+                    writer.writerow([url, email, "failed", note, time.strftime("%Y-%m-%d %H:%M:%S")])
+    try:
+        driver.quit()
+    except Exception:
+        pass
+    print(f"\nCompleted. See {success_log_path} and {failed_log_path} for logs.")
+
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = NewsletterSignupApp(root)
-    root.mainloop()
+    # If GUI is available, use it; else fallback to CLI
+    if can_start_gui():
+        try:
+            root = tk.Tk()
+            app = NewsletterSignupApp(root)
+            root.mainloop()
+        except Exception as e:
+            print(f"GUI error: {e}\nFalling back to CLI mode.")
+            cli_main()
+    else:
+        cli_main()
