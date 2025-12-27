@@ -1,0 +1,36 @@
+MacOS Prerequisites to run pp.py
+
+1) Homebrew (if not installed)
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+2) Install system packages
+   brew install python
+   brew install --cask firefox
+   brew install geckodriver
+
+3) Create & activate a virtual environment (recommended)
+   python3 -m venv .venv
+   source .venv/bin/activate
+
+4) Install Python dependencies
+   If there is a `requirements.txt` in the repo root:
+       pip install -r requirements.txt
+   Otherwise install the essentials:
+       pip install pandas selenium openpyxl
+
+5) Verify installations
+   geckodriver --version
+   firefox --version
+   python -c "import pandas, selenium; print('ok')"
+
+6) Prepare config and data
+   - Ensure `config.json` exists (the script will create a default one).
+   - Edit `config.json` and set `"automation_allowed": true` to enable automation.
+   - Place `PiratePunisher_WebsiteList.xlsx` in the repository root; it should contain a column with site URLs (header like `URLs`).
+
+7) Run
+   python pp.py
+
+Notes
+- `tkinter` is included with most macOS Python builds; if missing, install a Python distribution that includes it.
+- If you prefer Chrome, the script is written for Firefox/geckodriver — adapting to Chrome requires changing the WebDriver setup.
